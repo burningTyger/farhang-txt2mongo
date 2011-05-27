@@ -35,7 +35,11 @@ Dir.glob('../farhang/*.txt').each do |ff|
       end
       unless source.start_with?('- ')
         lemma = Lemma.create( :lemma => source )
-        trans = Translation.create( :source => source, :target => target )
+        if target.empty? or target.nil?
+          trans = Translation.create( :source => source )
+        else
+          trans = Translation.create( :source => source, :target => target )
+        end
         lemma.translations << trans
         lemma.save
       else
@@ -48,4 +52,4 @@ Dir.glob('../farhang/*.txt').each do |ff|
   end
 end
 
-p error.to_s
+error.each_pair {|k,v| puts "#{k}: #{v}"}
