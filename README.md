@@ -4,12 +4,16 @@ used in farhang. You pass the file name or wildcard along to check the
 file entries. If you pass in a database name as a second argument txt2mongo
 will store the entries in your mongodb. If you don't get any output it means
 your files are ok. If you get filenames and line numbers it means you need to
-correct them. Usually a ";" is forgotten.
-To check all files you need to put '*.txt' into quotation marks:
+correct them. Usually a `;` is forgotten.
 
-run like this:
-    ruby txt2mongo file.txt|'*.txt' [database]
+To check all files you need to put `*.txt` into quotation marks:
+
+`ruby txt2mongo file.txt|'*.txt' [database]`
+
 example:
-    ruby txt2mongo k.txt test_db
+
+`ruby txt2mongo k.txt test_db`
+
 or:
-    ruby txt2mongo '*.txt'
+
+`ruby txt2mongo '*.txt'`
