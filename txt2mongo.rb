@@ -1,3 +1,4 @@
+# encoding: UTF-8
 #
 # txt2mongo
 #
@@ -20,16 +21,17 @@
 #ruby txt2mongo k.txt test_db
 #or
 #ruby txt2mongo '*.txt'
-
 if ARGV[1]
   require 'rubygems' if RUBY_VERSION[0,3] == '1.8'
   require 'mongo_mapper'
-
+  
   MongoMapper.database = ARGV[1]
   
   class Lemma
     include MongoMapper::Document
     key :lemma, String
+    key :lemma_vowelized, String
+    key :rtl, Boolean
     key :translation_ids, Array
     many :translations, :in => :translation_ids
     timestamps!
@@ -46,10 +48,19 @@ if ARGV[1]
   Translation.collection.remove
   Lemma.ensure_index(:lemma)
   
-  error = {}
+  #replace wasla with madda on alif
+  def fix_typos(str)
+    puts "Wasla to Madda in #{str} fixed" if str.gsub!("\u0671", "\u0622")
+  end
+  
+  #this method removes kasra, fatha and damma from lemma
+  def devowelize(str)
+    str.delete("\u064B-\u0655")
+  end
+  
+  lemma = nil
   Dir.glob("#{ARGV[0]}").each do |ff|
     File.open(ff, 'r') do |f|
-      lemma = nil
       f.each_line do |l|
         source, target = l.split(';')
         begin
@@ -59,24 +70,30 @@ if ARGV[1]
           puts "#{ff.to_s} - #{f.lineno}: #{l}"
         end
         unless source.start_with?('- ')
-          lemma = Lemma.create( :lemma => source )
-          if target.nil? or target.empty?
-            trans = Translation.create( :source => source )
-          else
-            trans = Translation.create( :source => source, :target => target )
+          lemma = Lemma.new( :lemma => source )
+          unless target.nil? or target.empty?
+            trans = Translation.new( :source => source, :target => target )
+            lemma.translations << trans
+            target_lemmas = target.split('،')
+            target_lemmas.each do |t|
+              t.strip!
+              fix_typos(t)
+              ll = Lemma.new( :lemma_vowelized => t, :lemma => devowelize(t), :rtl => true )
+              tt = Translation.new( :source => t, :target => lemma.lemma )
+              ll.translations << tt
+              ll.save
+            end
           end
-          lemma.translations << trans
-          lemma.save
         else
           source.sub!('- ', '')
-          trans = Translation.create( :source => source, :target => target )
+          trans = Translation.new( :source => source, :target => target )
           lemma.translations << trans
-          lemma.save
         end
+        lemma.save unless lemma.nil?
       end
     end
   end
-
+  
 else
   Dir.glob("#{ARGV[0]}.txt").each do |ff|
     File.open(ff, 'r') do |f|
