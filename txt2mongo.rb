@@ -16,11 +16,11 @@
 # To check all files you need to put '*.txt' into quotation marks
 #
 #run like this
-#ruby txt2mongo file.txt|'*.txt' [database]
+#ruby txt2mongo.rb file.txt|'*.txt' [database]
 #example
-#ruby txt2mongo k.txt test_db
+#ruby txt2mongo.rb k.txt test_db
 #or
-#ruby txt2mongo '*.txt'
+#ruby txt2mongo.rb '*.txt'
 if ARGV[1]
   require 'rubygems' if RUBY_VERSION[0,3] == '1.8'
   require 'mongo_mapper'
@@ -58,14 +58,20 @@ if ARGV[1]
     str.delete("\u064B-\u0655")
   end
   
+  def strip_replace(str)
+    str.strip.gsub('\;', ';')
+  end
+  
   lemma = nil
   Dir.glob("#{ARGV[0]}").each do |ff|
     File.open(ff, 'r') do |f|
       f.each_line do |l|
-        source, target = l.split(';')
+        # split only if there is no unescaped semicolon (ie. \;)
+        # this way you can have translations that include semicolons
+        source, target = l.split(/(?<!\\)[;]/)
         begin
-          source.strip!
-          target.strip!
+          source = strip_replace(source)
+          target = strip_replace(target)
         rescue
           puts "#{ff.to_s} - #{f.lineno}: #{l}"
         end
@@ -95,15 +101,20 @@ if ARGV[1]
   end
   
 else
-  Dir.glob("#{ARGV[0]}.txt").each do |ff|
+  Dir.glob("#{ARGV[0]}").each do |ff|
     File.open(ff, 'r') do |f|
       f.each_line do |l|
-        source, target = l.split(';')
+        source, target = l.split(/(?<!\\)[;]/)
         begin
           source.strip!
           target.strip!
         rescue
           puts "#{ff.to_s} - #{f.lineno}: #{l}"
+        end
+        if source.start_with?("-  ") or l.count(";") > 1
+          puts "#{ff.to_s} - #{f.lineno}: #{l}"
+        else
+          #puts 'ok'
         end
       end
     end

@@ -8,12 +8,12 @@ correct them. Usually a `;` is forgotten.
 
 To check all files you need to put `*.txt` into quotation marks:
 
-`ruby txt2mongo file.txt|'*.txt' [database]`
+`ruby txt2mongo.rb file.txt|'*.txt' [database]`
 
 example:
 
-`ruby txt2mongo k.txt test_db`
+`ruby txt2mongo.rb k.txt test_db`
 
 or:
 
-`ruby txt2mongo '*.txt'`
+`ruby txt2mongo.rb '*.txt'`
