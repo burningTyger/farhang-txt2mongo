@@ -15,12 +15,12 @@
 # correct them. Usually a ";" is forgotten.
 # To check all files you need to put '*.txt' into quotation marks
 #
-#run like this
-#ruby txt2mongo.rb file.txt|'*.txt' [database]
-#example
-#ruby txt2mongo.rb k.txt test_db
-#or
-#ruby txt2mongo.rb '*.txt'
+# run like this
+# ruby txt2mongo.rb file.txt|'*.txt' [database]
+# example
+# ruby txt2mongo.rb k.txt test_db
+# or
+# ruby txt2mongo.rb '*.txt'
 if ARGV[1]
   require 'rubygems' if RUBY_VERSION[0,3] == '1.8'
   require 'mongo_mapper'
@@ -41,6 +41,9 @@ if ARGV[1]
     include MongoMapper::Document
     key :source, String
     key :target, String
+    key :fix, Boolean
+    key :lemma_ids, Array
+    many :lemmas, :in => :lemma_ids
     timestamps!
   end
   
@@ -80,22 +83,43 @@ if ARGV[1]
           unless target.nil? or target.empty?
             trans = Translation.new( :source => source, :target => target )
             lemma.translations << trans
-            target_lemmas = target.split('،')
-            target_lemmas.each do |t|
-              t.strip!
-              fix_typos(t)
-              ll = Lemma.new( :lemma_vowelized => t, :lemma => devowelize(t), :rtl => true )
-              tt = Translation.new( :source => t, :target => lemma.lemma )
-              ll.translations << tt
-              ll.save
-            end
+            trans.lemmas << lemma
+#            target_lemmas = target.split('،')
+#            target_lemmas.each do |t|
+#              t.strip!
+#              fix_typos(t)
+#              ll = Lemma.new( :lemma_vowelized => t, :lemma => devowelize(t), :rtl => true )
+#              tt = Translation.new( :source => t, :target => lemma.lemma )
+#              ll.translations << tt
+#              ll.save
+#            end
           end
         else
           source.sub!('- ', '')
-          trans = Translation.new( :source => source, :target => target )
-          lemma.translations << trans
+          check = Translation.first(:source => source)
+          trans = Translation.new( :source => source, :target => target )                
+          if check && check.target == target
+          	lemma.translations << check
+          	check.lemmas << lemma
+          	check.save
+          	trans.destroy
+          	trans = nil
+          elsif check && check.target != target
+          	lemma.translations << check
+          	lemma.translations << trans
+          	check.fix = true
+          	trans.fix = true
+          	trans.lemmas << lemma
+          	check.lemmas << lemma
+          	check.save
+          	puts "fix"
+          else
+        	  lemma.translations << trans 
+    	      trans.lemmas << lemma 		  	    
+          end
         end
         lemma.save unless lemma.nil?
+        trans.save unless trans.nil?
       end
     end
   end
@@ -113,8 +137,6 @@ else
         end
         if source.start_with?("-  ") or l.count(";") > 1
           puts "#{ff.to_s} - #{f.lineno}: #{l}"
-        else
-          #puts 'ok'
         end
       end
     end
