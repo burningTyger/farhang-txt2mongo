@@ -31,6 +31,7 @@ if ARGV[1]
     include MongoMapper::Document
     key :lemma, String
     key :lemma_vowelized, String
+    key :language, String
     key :rtl, Boolean
     key :translation_ids, Array
     many :translations, :in => :translation_ids
@@ -41,6 +42,7 @@ if ARGV[1]
     include MongoMapper::Document
     key :source, String
     key :target, String
+    key :language, String
     key :fix, Boolean
     key :lemma_ids, Array
     many :lemmas, :in => :lemma_ids
@@ -80,24 +82,30 @@ if ARGV[1]
         end
         unless source.start_with?('- ')
           lemma = Lemma.new( :lemma => source )
+          lemma.language = "de"
           unless target.nil? or target.empty?
-            trans = Translation.new( :source => source, :target => target )
+            trans = Translation.new( :source => source, :target => target, :language => "de" )
             lemma.translations << trans
             trans.lemmas << lemma
-#            target_lemmas = target.split('،')
-#            target_lemmas.each do |t|
-#              t.strip!
-#              fix_typos(t)
-#              ll = Lemma.new( :lemma_vowelized => t, :lemma => devowelize(t), :rtl => true )
-#              tt = Translation.new( :source => t, :target => lemma.lemma )
-#              ll.translations << tt
-#              ll.save
-#            end
+#
+            #generate lemmas from target, ie. target language
+            target_lemmas = target.split('،')
+            target_lemmas.each do |t|
+              t.strip!
+              fix_typos(t)
+              ll = Lemma.new( :lemma_vowelized => t, :lemma => devowelize(t), :rtl => true, :language => "fa" )
+              tt = Translation.new( :source => t, :target => lemma.lemma, :language => "fa" )
+              ll.translations << tt
+              tt.lemmas << ll
+              ll.save
+              tt.save
+            end
+#
           end
         else
           source.sub!('- ', '')
           check = Translation.first(:source => source)
-          trans = Translation.new( :source => source, :target => target )                
+          trans = Translation.new( :source => source, :target => target, :language => "de" )                
           if check && check.target == target
           	lemma.translations << check
           	check.lemmas << lemma
