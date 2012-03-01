@@ -24,49 +24,45 @@
 if ARGV[1]
   require 'rubygems' if RUBY_VERSION[0,3] == '1.8'
   require 'mongo_mapper'
-  
+
   MongoMapper.database = ARGV[1]
-  
+
   class Lemma
     include MongoMapper::Document
-    key :lemma, String
+    key :lemma, String, :unique => true, :required => true
     key :lemma_vowelized, String
     key :language, String
     key :rtl, Boolean
-    key :translation_ids, Array
-    many :translations, :in => :translation_ids
+    many :translations
     timestamps!
   end
-  
+
   class Translation
-    include MongoMapper::Document
+    include MongoMapper::EmbeddedDocument
     key :source, String
     key :target, String
     key :language, String
     key :fix, Boolean
-    key :lemma_ids, Array
-    many :lemmas, :in => :lemma_ids
     timestamps!
   end
-  
+
   Lemma.collection.remove
-  Translation.collection.remove
   Lemma.ensure_index(:lemma)
-  
+
   #replace wasla with madda on alif
   def fix_typos(str)
     puts "Wasla to Madda in #{str} fixed" if str.gsub!("\u0671", "\u0622")
   end
-  
+
   #this method removes kasra, fatha and damma from lemma
   def devowelize(str)
     str.delete("\u064B-\u0655")
   end
-  
+
   def strip_replace(str)
     str.strip.gsub('\;', ';')
   end
-  
+
   lemma = nil
   Dir.glob("#{ARGV[0]}").each do |ff|
     File.open(ff, 'r') do |f|
@@ -80,58 +76,23 @@ if ARGV[1]
         rescue
           puts "#{ff.to_s} - #{f.lineno}: #{l}"
         end
-        unless source.start_with?('- ')
+        if !source.start_with?('- ')
           lemma = Lemma.new( :lemma => source )
           lemma.language = "de"
           unless target.nil? or target.empty?
             trans = Translation.new( :source => source, :target => target, :language => "de" )
             lemma.translations << trans
-            trans.lemmas << lemma
-#
-            #generate lemmas from target, ie. target language
-            target_lemmas = target.split('،')
-            target_lemmas.each do |t|
-              t.strip!
-              fix_typos(t)
-              ll = Lemma.new( :lemma_vowelized => t, :lemma => devowelize(t), :rtl => true, :language => "fa" )
-              tt = Translation.new( :source => t, :target => lemma.lemma, :language => "fa" )
-              ll.translations << tt
-              tt.lemmas << ll
-              ll.save
-              tt.save
-            end
-#
           end
         else
           source.sub!('- ', '')
-          check = Translation.first(:source => source)
-          trans = Translation.new( :source => source, :target => target, :language => "de" )                
-          if check && check.target == target
-          	lemma.translations << check
-          	check.lemmas << lemma
-          	check.save
-          	trans.destroy
-          	trans = nil
-          elsif check && check.target != target
-          	lemma.translations << check
-          	lemma.translations << trans
-          	check.fix = true
-          	trans.fix = true
-          	trans.lemmas << lemma
-          	check.lemmas << lemma
-          	check.save
-          	puts "fix"
-          else
-        	  lemma.translations << trans 
-    	      trans.lemmas << lemma 		  	    
-          end
+          trans = Translation.new( :source => source, :target => target, :language => "de" )
+        	lemma.translations << trans
         end
         lemma.save unless lemma.nil?
-        trans.save unless trans.nil?
       end
     end
   end
-  
+
 else
   Dir.glob("#{ARGV[0]}").each do |ff|
     File.open(ff, 'r') do |f|
@@ -150,3 +111,4 @@ else
     end
   end
 end
+
