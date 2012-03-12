@@ -24,15 +24,17 @@
 if ARGV[1]
   require 'rubygems' if RUBY_VERSION[0,3] == '1.8'
   require 'mongo_mapper'
+  require 'versionable'
 
   MongoMapper.database = ARGV[1]
 
   class Lemma
     include MongoMapper::Document
+    enable_versioning :limit => 0
     key :lemma, String, :unique => true, :required => true
-    key :lemma_vowelized, String
+    key :edited_by, String
+    key :valid, Boolean
     key :language, String
-    key :rtl, Boolean
     many :translations
     timestamps!
   end
@@ -77,18 +79,18 @@ if ARGV[1]
           puts "#{ff.to_s} - #{f.lineno}: #{l}"
         end
         if !source.start_with?('- ')
+          lemma.save unless lemma.nil?
           lemma = Lemma.new( :lemma => source )
           lemma.language = "de"
           unless target.nil? or target.empty?
-            trans = Translation.new( :source => source, :target => target, :language => "de" )
+            trans = Translation.new( :source => source, :target => target )
             lemma.translations << trans
           end
         else
           source.sub!('- ', '')
-          trans = Translation.new( :source => source, :target => target, :language => "de" )
+          trans = Translation.new( :source => source, :target => target )
         	lemma.translations << trans
         end
-        lemma.save unless lemma.nil?
       end
     end
   end
