@@ -32,8 +32,7 @@ if ARGV[1]
     include MongoMapper::Document
     enable_versioning :limit => 0
     key :lemma, String, :unique => true, :required => true
-    key :edited_by, String
-    key :valid, Boolean
+    key :valid, Boolean, :default => true
     key :language, String
     many :translations
     timestamps!
@@ -43,23 +42,10 @@ if ARGV[1]
     include MongoMapper::EmbeddedDocument
     key :source, String
     key :target, String
-    key :language, String
-    key :fix, Boolean
-    timestamps!
   end
 
   Lemma.collection.remove
   Lemma.ensure_index(:lemma)
-
-  #replace wasla with madda on alif
-  def fix_typos(str)
-    puts "Wasla to Madda in #{str} fixed" if str.gsub!("\u0671", "\u0622")
-  end
-
-  #this method removes kasra, fatha and damma from lemma
-  def devowelize(str)
-    str.delete("\u064B-\u0655")
-  end
 
   def strip_replace(str)
     str.strip.gsub('\;', ';')
@@ -92,6 +78,7 @@ if ARGV[1]
         	lemma.translations << trans
         end
       end
+      lemma.save
     end
   end
 
