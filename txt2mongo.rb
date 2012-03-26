@@ -55,6 +55,7 @@ if ARGV[1]
   Dir.glob("#{ARGV[0]}").each do |ff|
     File.open(ff, 'r') do |f|
       f.each_line do |l|
+        next if l.empty?
         # split only if there is no unescaped semicolon (ie. \;)
         # this way you can have translations that include semicolons
         source, target = l.split(/(?<!\\)[;]/)
@@ -65,7 +66,11 @@ if ARGV[1]
           puts "#{ff.to_s} - #{f.lineno}: #{l}"
         end
         if !source.start_with?('- ')
-          lemma.save unless lemma.nil?
+          begin
+            lemma.save! unless lemma.nil?
+          rescue
+            puts lemma.lemma
+          end
           lemma = Lemma.new( :lemma => source )
           lemma.language = "de"
           unless target.nil? or target.empty?
@@ -78,7 +83,7 @@ if ARGV[1]
         	lemma.translations << trans
         end
       end
-      lemma.save
+      lemma.save!
     end
   end
 
